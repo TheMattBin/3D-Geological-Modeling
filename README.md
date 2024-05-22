@@ -24,8 +24,18 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 │   └── Model comparison/
 │       └── TBC
 ├── Others/
-│   └── TBC
+|   ├── 3D Rising Main - Height.py
+|   ├── 3D Rising Main.py
+|   ├── CrossSection - buff 5.py
+|   ├── CrossSection - buff 10.py
+|   ├── Lithological Profile.py
+│   └── SPT Profile.py
 ├── Script of toolbox/
 │   └── tbc
 └── README.md
 ```
+## Script Function
+### Others
+- Create and visualize 3D rising mains based on raw data
+- Visualize and compare lithological profiles underground
+- Visualize and compare SPT profiles underground
