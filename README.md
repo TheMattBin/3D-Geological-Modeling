@@ -2,9 +2,13 @@
 This repo is for 3D geological or geotechnical modelling based on machine learning
 
 ## Models
-- [ ] K Nearest Neighbour (kNN)
-- [ ] Support Vector Machine (SVM)
-- [ ] Decision Tree (DT)
+- [x] K Nearest Neighbour (kNN)
+- [x] Support Vector Machine (SVM)
+- [x] Random Forest (RF)
+- [x] Gradient Boosting Classifiers (GBC)
+- [x] Fully Connected Neural Network (NN)
+- [x] Ensemble Method
+- [x] Indicator Kriging 3D
 
 ## Directory Structure
 ```ascii
@@ -17,8 +21,16 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 │   ├── CPT Processing.py
 │   └── Borehole SPT CPT data processing.txt
 ├── 3D Modelling/
-│   ├── Geological modelling to indicate/
-│   │   └── TBC
+│   ├── Geological modelling/
+│   |   ├── 3D by kNN.py
+│   |   ├── 3D by RF.py
+│   |   ├── 3D by Stacked.py
+│   |   ├── 3D by SVM.py
+│   |   ├── 3D for whole HK.py
+│   |   ├── 3D GBC.py
+│   |   ├── 3D NN.py
+│   |   ├── IndicatorKriging3D.py
+│   |   └── remove land.txt
 │   ├── Geotechnical modelling/
 │   │   └── TBC
 │   └── Model comparison/
@@ -35,6 +47,10 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 └── README.md
 ```
 ## Script Function
+### 3D Modelling
+#### Geological modelling
+- Scripts for different modelling methods
+- Create visualization model for Hong Kong and removal of land
 ### Others
 - Create and visualize 3D rising mains based on raw data
 - Visualize and compare lithological profiles underground
