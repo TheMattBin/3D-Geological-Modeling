@@ -32,7 +32,13 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 │   |   ├── IndicatorKriging3D.py
 │   |   └── remove land.txt
 │   ├── Geotechnical modelling/
-│   │   └── TBC
+│   |   ├── 3D Geotechnical Model by kNN.py
+│   |   ├── Check Soil Materials over SPT.py
+│   |   ├── CPT Model.py
+│   |   ├── CPT sheet separation.py
+│   |   ├── CPT-SPT relation.py
+│   |   ├── Geo SPT Comb.py
+│   |   └── Ordinary Kriging SPT.txt
 │   └── Model comparison/
 │       └── TBC
 ├── Others/
@@ -51,6 +57,10 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 #### Geological modelling
 - Scripts for different modelling methods
 - Create visualization model for Hong Kong and removal of land
+#### Geotechnical modelling
+- Script for geotechnical model using kNN
+- Relationship between CPT and SPT
+- Combine SPT with CPT
 ### Others
 - Create and visualize 3D rising mains based on raw data
 - Visualize and compare lithological profiles underground
