@@ -1,4 +1,6 @@
 # 3D-Geological-Modeling
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/scikit-learn) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 This repo is for 3D geological or geotechnical modelling based on machine learning
 
 ## Models
@@ -40,7 +42,10 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 │   |   ├── Geo SPT Comb.py
 │   |   └── Ordinary Kriging SPT.txt
 │   └── Model comparison/
-│       └── TBC
+│   |   ├── Accuracy Comparison.py
+│   |   ├── Borehole and model compare.py
+│   |   ├── Borehole log Comparison.py
+│   |   └── Section Plane Comparison.txt
 ├── Others/
 |   ├── 3D Rising Main - Height.py
 |   ├── 3D Rising Main.py
@@ -61,6 +66,9 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 - Script for geotechnical model using kNN
 - Relationship between CPT and SPT
 - Combine SPT with CPT
+#### Model comparison
+- Compare accuracy and F1 among medels
+- Compare borehole and cross sections among models
 ### Others
 - Create and visualize 3D rising mains based on raw data
 - Visualize and compare lithological profiles underground
