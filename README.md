@@ -54,7 +54,10 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 |   ├── Lithological Profile.py
 │   └── SPT Profile.py
 ├── Script of toolbox/
-│   └── tbc
+|   ├── 3D modelling.py
+|   ├── CrossSection.py
+│   ├── CrossSection_from_voxel.py
+│   └── 3D Boreline.py
 └── README.md
 ```
 ## Script Function
@@ -73,3 +76,5 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 - Create and visualize 3D rising mains based on raw data
 - Visualize and compare lithological profiles underground
 - Visualize and compare SPT profiles underground
+### Script of toolbox
+- Functional tools to create 3D borehole logs, models and cross sections based on GIS
