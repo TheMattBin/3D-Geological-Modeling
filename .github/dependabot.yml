@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"  # Specifies the package ecosystem as Python's pip
+    directory: "/"             # Location of the requirements.txt file
+    schedule:
+      interval: "weekly"       # Set to check for updates weekly
+    open-pull-requests-limit: 5 # Limit the number of open pull requests
+    ignore:                    # Optional: specify any dependencies to ignore
+      - dependency-name: "example-package" # Replace with actual package name
+        versions: ["<2.0.0"]   # Ignore versions below 2.0.0
