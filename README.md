@@ -3,6 +3,9 @@
 
 This repo is for 3D geological or geotechnical modelling based on machine learning
 
+>[!IMPORTANT]
+> arcpy is not included in requirements as it needs license!
+
 ## Models
 - [x] K Nearest Neighbour (kNN)
 - [x] Support Vector Machine (SVM)
