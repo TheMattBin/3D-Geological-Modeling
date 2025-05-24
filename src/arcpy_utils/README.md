@@ -1,0 +1,1 @@
+Scripts are used for visualization in GIS related products.

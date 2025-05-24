@@ -17,52 +17,21 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 
 ## Directory Structure
 ```ascii
-.
-├── Borehole reading /
-│   ├── AGS Lab processing.py
-│   ├── AGS Processing.py
-│   ├── AGS Reading.py
-│   ├── BH Error Check.py
-│   ├── CPT Processing.py
-│   └── Borehole SPT CPT data processing.txt
-├── 3D Modelling/
-│   ├── Geological modelling/
-│   |   ├── 3D by kNN.py
-│   |   ├── 3D by RF.py
-│   |   ├── 3D by Stacked.py
-│   |   ├── 3D by SVM.py
-│   |   ├── 3D for whole HK.py
-│   |   ├── 3D GBC.py
-│   |   ├── 3D NN.py
-│   |   ├── IndicatorKriging3D.py
-│   |   └── remove land.txt
-│   ├── Geotechnical modelling/
-│   |   ├── 3D Geotechnical Model by kNN.py
-│   |   ├── Check Soil Materials over SPT.py
-│   |   ├── CPT Model.py
-│   |   ├── CPT sheet separation.py
-│   |   ├── CPT-SPT relation.py
-│   |   ├── Geo SPT Comb.py
-│   |   └── Ordinary Kriging SPT.txt
-│   └── Model comparison/
-│   |   ├── Accuracy Comparison.py
-│   |   ├── Borehole and model compare.py
-│   |   ├── Borehole log Comparison.py
-│   |   └── Section Plane Comparison.txt
-├── Others/
-|   ├── 3D Rising Main - Height.py
-|   ├── 3D Rising Main.py
-|   ├── CrossSection - buff 5.py
-|   ├── CrossSection - buff 10.py
-|   ├── Lithological Profile.py
-│   └── SPT Profile.py
-├── Script of toolbox/
-|   ├── 3D modelling.py
-|   ├── CrossSection.py
-│   ├── CrossSection_from_voxel.py
-│   └── 3D Boreline.py
+3D-Geological-Modeling/
+├── src/                    # Source code for the project
+│   ├── borehole/           # Borehole data processing modules
+│   ├── modeling/           # 3D modeling algorithms (kNN, RF, SVM, etc.)
+│   ├── geotechnical/       # Geotechnical modeling scripts
+│   ├── comparison/         # Model comparison scripts
+│   ├── visualization/      # Visualization utilities
+│   ├── arcpy_utils/        # Arcpy utility functions
+│   └── utils/              # Shared utility functions
+├── examples/               # Examples
+├── requirements.txt        # Python dependencies
+├── .gitignore
 └── README.md
 ```
+
 ## Script Function
 ### 3D Modelling
 #### Geological modelling
