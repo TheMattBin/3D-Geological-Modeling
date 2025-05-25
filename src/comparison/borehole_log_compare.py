@@ -15,7 +15,6 @@ def compare_borehole_logs(nc_path: str, csv_path: str) -> None:
     litoMatrix_knn = var['Lithology'][:]
     Xknn = var['x'][:]
     Yknn = var['y'][:]
-    Zknn = var['z'][:]
     predict_bh_list = []
     ori_bh_list = []
     for i, val in code.items():

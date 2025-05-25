@@ -22,7 +22,6 @@ This repo is for 3D geological or geotechnical modelling based on machine learni
 │   ├── borehole/           # Borehole data processing modules
 │   ├── modeling/           # 3D modeling algorithms (kNN, RF, SVM, etc.)
 │   ├── comparison/         # Model comparison scripts
-│   ├── visualization/      # Visualization utilities
 │   ├── arcpy_utils/        # Arcpy utility functions
 │   └── utils/              # Shared utility functions
 ├── examples/               # Examples
