@@ -6,7 +6,6 @@ Created on Mon Jan 10 11:22:48 2022
 """
 
 import pandas as pd
-from typing import Optional
 
 def cleanse_borehole_data(
     input_csv: str,

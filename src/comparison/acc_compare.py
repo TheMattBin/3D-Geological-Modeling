@@ -100,7 +100,6 @@ def acc_com_by_bh(delta: float, csv_path: str) -> None:
 def main():
     csv_path = 'CentralWater_20211230_comb.csv'
     for delta in [1, 10, 100, 1000, 10000]:
-        print(f"Delta: {delta}")
         acc_com_by_bh(delta, csv_path)
 
 
