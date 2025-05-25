@@ -7,6 +7,6 @@ updates:
     open-pull-requests-limit: 5 # Limit the number of open pull requests
     ignore:                    # Specify dependencies to ignore
       - dependency-name: "arcpy"  # Ignore arcpy
-        versions: []              # Ignore all versions
+        # versions: []              # Ignore all versions
       - dependency-name: "netCDF4" # Ignore netCDF4
-        versions: []              # Ignore all versions
+        # versions: []              # Ignore all versions
