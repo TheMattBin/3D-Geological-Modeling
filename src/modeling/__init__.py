@@ -1,4 +1,4 @@
-from .modeling import (
+from .voxel_modeling import (
     BaseVoxelModel,
     KNNVoxelModel,
     RFVoxelModel,
@@ -6,9 +6,4 @@ from .modeling import (
     GBCVoxelModel,
     NNVoxelModel,
     StackedVoxelModel,
-)
-from .borehole import (
-    AGSProcessor,
-    cleanse_borehole_data,
-    process_ags_geology,
 )

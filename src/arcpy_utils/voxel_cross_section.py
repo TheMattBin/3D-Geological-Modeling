@@ -16,7 +16,6 @@ def CrossSection_3D_Model(geo_model, polyline_input, name, y_cellsize):
 	yAxisCoordinate = str(min(east)) + ' ' + str(min(northing) + 0.1)
 	cellSizeWidth = str(east[1] - east[0])
 	cellSizeHeight = str(northing[1] - northing[0])
-	cellSizeDepth = depth[1] - depth[0]
 	oppositeCoorner = str(max(east)) + ' ' + str(max(northing))
 	outFeatureClass = "fishnet_voxel.shp"
 	arcpy.CreateFishnet_management(outFeatureClass, originCoordinate, yAxisCoordinate, cellSizeWidth, cellSizeHeight, '#', '#', oppositeCoorner, 'LABELS', '#', 'POLYGON')

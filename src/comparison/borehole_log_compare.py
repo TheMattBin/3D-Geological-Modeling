@@ -13,7 +13,6 @@ def compare_borehole_logs(nc_path: str, csv_path: str) -> None:
     for i in range(len(df['Easting'])):
         code[(df['Easting'][i], df['Northing'][i])].append(df['Legend Code'][i])
     litoMatrix_knn = var['Lithology'][:]
-    EntropyMatrix_knn = var['Information Entropy'][:]
     Xknn = var['x'][:]
     Yknn = var['y'][:]
     Zknn = var['z'][:]
