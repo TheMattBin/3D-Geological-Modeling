@@ -28,10 +28,7 @@ def boreline(spatial_ref, bore_table, workplace):
 
         for i in range(len(borept_list)-1):
             Bore_array = arcpy.Array( [arcpy.Point(borept_list[i][3], borept_list[i][4], borept_list[i][7]), arcpy.Point(borept_list[i][3], borept_list[i][4], borept_list[i][8])])
-            # print([bp[2], blog[4], blog[5]])
-            # print(list(Bore_array))
             polyline_bore = arcpy.Polyline(Bore_array, None, True)
-            # print(list(polyline_bore))
             boreline_cur.insertRow([polyline_bore])
             Bore_array.removeAll()
 
