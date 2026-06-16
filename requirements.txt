@@ -5,5 +5,5 @@ netCDF4>=1.6.3
 tqdm>=4.68.2
 scipy>=1.17.1
 rasterio>=1.5.0
-matplotlib>=3.10.9
+matplotlib>=3.11.0
 seaborn>=0.13.2
