@@ -1,3 +1,5 @@
+import traceback
+
 import arcpy
 
 #can add 3D length of borehole
@@ -26,7 +28,7 @@ def boreline(spatial_ref, bore_table, workplace):
         for row in cur_borept:
             borept_list.append(row)
 
-        for i in range(len(borept_list)-1):
+        for i in range(len(borept_list)):
             Bore_array = arcpy.Array( [arcpy.Point(borept_list[i][3], borept_list[i][4], borept_list[i][7]), arcpy.Point(borept_list[i][3], borept_list[i][4], borept_list[i][8])])
             polyline_bore = arcpy.Polyline(Bore_array, None, True)
             boreline_cur.insertRow([polyline_bore])
@@ -49,14 +51,11 @@ def boreline(spatial_ref, bore_table, workplace):
 
         del cur_update
 
-    except:
-        pass
+    except Exception:
+        arcpy.AddError(traceback.format_exc())
 
 #PARAMETER
 fc = arcpy.GetParameterAsText(0)
 bore_table = arcpy.GetParameterAsText(1)
 workplace = arcpy.GetParameterAsText(2)
-try:
-    boreline(fc, bore_table, workplace)
-except:
-    pass
+boreline(fc, bore_table, workplace)

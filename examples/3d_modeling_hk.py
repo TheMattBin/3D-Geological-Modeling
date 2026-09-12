@@ -79,7 +79,9 @@ def voxel_model(df, dist):
                 # Shenzhen mask
                 if 800576.1164593603 <= cellCols[col] <= 870476.1164593603 and 834121.0385106392 <= cellRows[row] <= 858521.0385106392:
                     try:
-                        if shenzhen_Raster.index(cellCols[col], cellRows[row]):
+                        x_sz, y_sz = shenzhen_Raster.index(cellCols[col], cellRows[row])
+                        sz_val = shenzhen_Raster.read(1)[x_sz, y_sz]
+                        if sz_val > -3.4e+38:
                             land.append([cellCols[col], cellRows[row]])
                     except Exception:
                         pass

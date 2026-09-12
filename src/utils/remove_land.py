@@ -30,7 +30,9 @@ def model_land_no_(var: nc.Dataset, seabed_raster: rasterio.io.DatasetReader, sh
     for j in range(north):
         for i in range(east):
             if 800576.1164593603 <= X[i] <= 870476.1164593603 and 834121.0385106392 <= Y[j] <= 858521.0385106392:
-                if shenzhen_raster.index(X[i], Y[j]):
+                x, y = shenzhen_raster.index(X[i], Y[j])
+                val = shenzhen_raster.read(1)[x, y]
+                if val > -3.4e+38:
                     land.append([j, i])
             if 801975.0 <= X[i] <= 860025.0 and 800975.0 <= Y[j] <= 847525.0:
                 x, y = seabed_raster.index(X[i], Y[j])

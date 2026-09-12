@@ -69,4 +69,4 @@ def RisingMain(feature):
 fc = arcpy.GetParameterAsText(0)
 fc = fc.split(';')
 for f in fc:
-    RisingMain(fc)
+    RisingMain(f)

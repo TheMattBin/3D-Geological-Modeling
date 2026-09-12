@@ -35,6 +35,10 @@ class BaseVoxelModel:
             litoPoints.append(wellXY + [values['Ground Level'] - values['Depth Base'], values['Legend Code']])
             litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
             if litoLength < 1:
+                midPoint = wellXY + [
+                    (values['Ground Level'] - values['Depth Top']) - litoLength / 2,
+                    values['Legend Code']]
+                litoPoints.append(midPoint)
                 continue
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -93,8 +97,8 @@ class BaseVoxelModel:
 
 
 class KNNVoxelModel(BaseVoxelModel):
-    def __init__(self, dist=100, n_neighbors=15):
-        super().__init__(dist)
+    def __init__(self, dist=100, n_neighbors=15, seabed_raster_path=None):
+        super().__init__(dist, seabed_raster_path)
         self.n_neighbors = n_neighbors
 
     def fit_predict(self, coor, coor_trans, soil_class, **kwargs):
@@ -112,13 +116,22 @@ class KNNVoxelModel(BaseVoxelModel):
         nCols, nRows, nLays = cellCols.shape[0], cellRows.shape[0], cellLays.shape[0]
         litoMatrix = ma.zeros([nLays, nRows, nCols])
         ProbMatrix = ma.zeros([nLays, nRows, nCols])
+        land = []
         for lay in tqdm(range(nLays), desc="Processing layers"):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
+                    if self.seabed_raster:
+                        x, y = self.seabed_raster.index(cellCols[col], cellRows[row])
+                        val = self.seabed_raster.read(1)[x, y]
+                        if val <= -3.4e+38:
+                            land.append([cellCols[col], cellRows[row]])
+                        if cellLays[lay] >= val and [cellCols[col], cellRows[row]] not in land:
+                            litoMatrix[lay, row, col] = 0
+                            ProbMatrix[lay, row, col] = ma.masked
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -149,7 +162,7 @@ class RFVoxelModel(BaseVoxelModel):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
                     if self.seabed_raster:
@@ -190,7 +203,7 @@ class SVMVoxelModel(BaseVoxelModel):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
                     if self.seabed_raster:
@@ -231,7 +244,7 @@ class GBCVoxelModel(BaseVoxelModel):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
                     if self.seabed_raster:
@@ -272,7 +285,7 @@ class NNVoxelModel(BaseVoxelModel):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
@@ -307,7 +320,7 @@ class StackedVoxelModel(BaseVoxelModel):
             for row in range(nRows):
                 for col in range(nCols):
                     cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
+                    litoMatrix[lay, row, col] = clf.predict([cellTrans])[0]
                     prob_pre = clf.predict_proba([cellTrans])
                     ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
@@ -324,13 +337,14 @@ if __name__ == "__main__":
     parser.add_argument("--n_estimators", type=int, default=100, help="Number of estimators (RF/GBC)")
     parser.add_argument("--gamma", type=float, default=0.5, help="Gamma for SVM")
     parser.add_argument("--alpha", type=float, default=0.01, help="Alpha for NN")
-    parser.add_argument("--seabed", type=str, default=None, help="Seabed raster path (for RF/SVM/GBC)")
+    parser.add_argument("--n_neighbors", type=int, default=15, help="Number of neighbors (KNN)")
+    parser.add_argument("--seabed", type=str, default=None, help="Seabed raster path (for KNN/RF/SVM/GBC)")
     args = parser.parse_args()
 
     df = pd.read_csv(args.csv)
 
     if args.method == "knn":
-        model = KNNVoxelModel(dist=args.dist)
+        model = KNNVoxelModel(dist=args.dist, n_neighbors=args.n_neighbors, seabed_raster_path=args.seabed)
         model.run(df, args.out)
     elif args.method == "rf":
         model = RFVoxelModel(dist=args.dist, n_estimators=args.n_estimators, seabed_raster_path=args.seabed)

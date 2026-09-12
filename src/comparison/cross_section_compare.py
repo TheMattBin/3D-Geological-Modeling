@@ -217,8 +217,8 @@ class SectionComparison:
         section_plane = [code2[key][20:] for key in code2 if key in section_plane_ori]
         entropy_plane = [entropy2[key][20:] for key in entropy2 if key in section_plane_ori]
         entropy_plane_trans = np.transpose(np.array(entropy_plane))
-        en_color = plt.imshow(entropy_plane_trans, aspect='auto', cmap=plt.cm.get_cmap('jet'))
-        plt.colorbar(orientation='horizontal')
+        en_color = plt.imshow(entropy_plane_trans, aspect='auto', cmap=plt.get_cmap('jet'))
+        plt.colorbar(en_color, orientation='horizontal')
         plt.colorbar(en_color)
         if show_plot:
             plt.show()
