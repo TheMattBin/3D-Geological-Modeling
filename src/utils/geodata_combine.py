@@ -33,7 +33,7 @@ class GeoDataCombiner:
         output_csv: str = "combine_cpt_spt.csv"
     ) -> None:
         """
-        Combine SPT and CPT data, calculate average Qc for each SPT interval, and merge multiple CPT files.
+        Combine SPT and CPT data, calculate average Qc for each SPT interval, and save the combined result.
         """
         sptdata = pd.read_csv(spt_csv)
         sptdata.drop(['BH_Type', 'Report No.', 'Hole ID'], axis=1, inplace=True)
@@ -47,11 +47,18 @@ class GeoDataCombiner:
         spt_df = []
         for i in range(l):
             cpt_elev[(cptdata['Easting'][i], cptdata['Northing'][i])].append(cptdata['ElevCPT'][i])
+        seen_intervals: Dict = defaultdict(set)
         for key in cpt_elev.keys():
             tmpdf = sptdata[((sptdata['Easting_x']-key[0])**2 + (sptdata['Northing_x']-key[1])**2) <= 12100]
             spt_df.append(tmpdf)
             for i, val in tmpdf.iterrows():
-                spt_elev[(val['Easting_x'], val['Northing_x'])].append([val['TopElev_y'], val['BotElev_y']])
+                interval = [val['TopElev_y'], val['BotElev_y']]
+                # NaN-aware dedupe key: None == None, unlike float('nan') != float('nan'),
+                # so this agrees with pandas drop_duplicates (which treats NaNs as equal).
+                interval_key = tuple(None if pd.isna(v) else v for v in interval)
+                if interval_key not in seen_intervals[(val['Easting_x'], val['Northing_x'])]:
+                    seen_intervals[(val['Easting_x'], val['Northing_x'])].add(interval_key)
+                    spt_elev[(val['Easting_x'], val['Northing_x'])].append(interval)
         for k, value in spt_elev.items():
             tmpdf = cptdata[((cptdata['Easting'] - k[0]) ** 2 + (cptdata['Northing'] - k[1]) ** 2) <= 12100]
             for v in value:
@@ -61,11 +68,11 @@ class GeoDataCombiner:
         east = [[k[0]] * len(v) for k, v in qc_2_append.items()]
         north = [[k[1]] * len(v) for k, v in qc_2_append.items()]
         spt_df = pd.concat(spt_df, sort=False)
+        spt_df = spt_df.drop_duplicates(subset=['Easting_x', 'Northing_x', 'TopElev_y', 'BotElev_y'])
         spt_df['East'] = [ee for e in east for ee in e]
         spt_df['North'] = [nn for n in north for nn in n]
         spt_df['qc'] = [vv for k, v in qc_2_append.items() for vv in v]
-        combdf = pd.concat([pd.read_csv(f) for f in cpt_csv_list], sort=False)
-        combdf.to_csv(output_csv, index=False)
+        spt_df.to_csv(output_csv, index=False)
 
 class GeoDataSeparator:
     """

@@ -11,7 +11,6 @@ Export as NetCDF file for further analysis.
 import pandas as pd
 import numpy as np
 import numpy.ma as ma
-from tqdm import tqdm
 import rasterio
 import netCDF4
 
@@ -35,6 +34,10 @@ class BaseVoxelModel:
             litoPoints.append(wellXY + [values['Ground Level'] - values['Depth Base'], values['Legend Code']])
             litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
             if litoLength < 1:
+                midPoint = wellXY + [
+                    (values['Ground Level'] - values['Depth Top']) - litoLength / 2,
+                    values['Legend Code']]
+                litoPoints.append(midPoint)
                 continue
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -46,6 +49,52 @@ class BaseVoxelModel:
         coor_trans = np.hstack((litoNp[:, :2] / self.dist, litoNp[:, 2].reshape(-1, 1)))
         soil_class = litoNp[:, 3]
         return litoNp, coor_trans, soil_class
+
+    def _grid_queries(self, cellCols, cellRows, cellLays):
+        """Transformed query coordinates for every voxel, in the original loop
+        order lay -> row -> col, so a flat result reshapes directly to
+        (nLays, nRows, nCols)."""
+        nLays = cellLays.shape[0]
+        nRows = cellRows.shape[0]
+        nCols = cellCols.shape[0]
+        Xq = np.empty((nLays, nRows, nCols, 3))
+        Xq[..., 0] = (cellCols / self.dist)[None, None, :]
+        Xq[..., 1] = (cellRows / self.dist)[None, :, None]
+        Xq[..., 2] = cellLays[:, None, None]
+        return Xq.reshape(-1, 3)
+
+    def _predict_grid(self, clf, cellCols, cellRows, cellLays):
+        """Batched replacement for the former per-voxel
+        ``clf.predict([cellTrans])`` / ``clf.predict_proba([cellTrans])`` /
+        ``entropy(prob_pre.flatten(), base=2)`` loops. One call each for
+        predict, predict_proba and the row-wise entropy."""
+        shape = (cellLays.shape[0], cellRows.shape[0], cellCols.shape[0])
+        Xq = self._grid_queries(cellCols, cellRows, cellLays)
+        lito = clf.predict(Xq).reshape(shape)
+        ent = entropy(clf.predict_proba(Xq), base=2, axis=1).reshape(shape)
+        return lito, ent
+
+    def _seabed_masks(self, cellCols, cellRows):
+        """Seabed elevation and nodata-land mask per (row, col). The raster
+        band is read once instead of per voxel; ``index()`` is queried per
+        cell exactly as before, with the same ``band[row, col]`` indexing and
+        the same scalar ``<= -3.4e+38`` nodata test (kept as a per-cell
+        scalar comparison — raster.nodata reads back as the float32-rounded
+        -3.3999999521443642e+38, which classifies float32-nodata pixels
+        differently, and numpy < 2 evaluates scalar and array comparisons
+        against the -3.4e+38 literal differently)."""
+        seabed = self.seabed_raster.read(1)
+        nRows = cellRows.shape[0]
+        nCols = cellCols.shape[0]
+        val = np.empty((nRows, nCols), dtype=seabed.dtype)
+        land = np.zeros((nRows, nCols), dtype=bool)
+        for row in range(nRows):
+            for col in range(nCols):
+                r, c = self.seabed_raster.index(cellCols[col], cellRows[row])
+                v = seabed[r, c]
+                val[row, col] = v
+                land[row, col] = v <= -3.4e+38
+        return val, land
 
     def create_voxel(self, cellCols, cellRows, cellLays, litoMatrix, ProbMatrix, filename):
         nCols = cellCols.shape[0]
@@ -93,8 +142,8 @@ class BaseVoxelModel:
 
 
 class KNNVoxelModel(BaseVoxelModel):
-    def __init__(self, dist=100, n_neighbors=15):
-        super().__init__(dist)
+    def __init__(self, dist=100, n_neighbors=15, seabed_raster_path=None):
+        super().__init__(dist, seabed_raster_path)
         self.n_neighbors = n_neighbors
 
     def fit_predict(self, coor, coor_trans, soil_class, **kwargs):
@@ -112,13 +161,19 @@ class KNNVoxelModel(BaseVoxelModel):
         nCols, nRows, nLays = cellCols.shape[0], cellRows.shape[0], cellLays.shape[0]
         litoMatrix = ma.zeros([nLays, nRows, nCols])
         ProbMatrix = ma.zeros([nLays, nRows, nCols])
-        for lay in tqdm(range(nLays), desc="Processing layers"):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
+        if self.seabed_raster:
+            val, land = self._seabed_masks(cellCols, cellRows)
+            # Old per-voxel rule: mask iff cellLays[lay] >= val and
+            # [cellCols[col], cellRows[row]] not in land, where land collected
+            # exactly the coordinates whose pixel is nodata (appended before
+            # the membership test in the same iteration, so a nodata cell is
+            # always blocked). Equivalent to: valid pixel and at/above seabed.
+            water = (~land)[None, :, :] & (cellLays[:, None, None] >= val[None, :, :])
+            litoMatrix[water] = 0
+            ProbMatrix[water] = ma.masked
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -144,22 +199,17 @@ class RFVoxelModel(BaseVoxelModel):
         nLays = cellLays.shape[0]
         litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
         ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
-        land = []
-        for lay in tqdm(range(nLays)):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
-                    if self.seabed_raster:
-                        x, y = self.seabed_raster.index(cellCols[col], cellRows[row])
-                        val = self.seabed_raster.read(1)[x, y]
-                        if val <= -3.4e+38:
-                            land.append([cellCols[col], cellRows[row]])
-                        if cellLays[lay] >= val and [cellCols[col], cellRows[row]] not in land:
-                            litoMatrix[lay, row, col] = 0
-                            ProbMatrix[lay, row, col] = ma.masked
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
+        if self.seabed_raster:
+            val, land = self._seabed_masks(cellCols, cellRows)
+            # Same equivalence as KNNVoxelModel: land == nodata pixels, which
+            # always fail the old "not in land" test; water == valid pixels at
+            # or above the seabed elevation.
+            water = (~land)[None, :, :] & (cellLays[:, None, None] >= val[None, :, :])
+            litoMatrix[water] = 0
+            ProbMatrix[water] = ma.masked
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -185,22 +235,17 @@ class SVMVoxelModel(BaseVoxelModel):
         nLays = cellLays.shape[0]
         litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
         ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
-        land = []
-        for lay in tqdm(range(nLays)):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
-                    if self.seabed_raster:
-                        x, y = self.seabed_raster.index(cellCols[col], cellRows[row])
-                        val = self.seabed_raster.read(1)[x, y]
-                        if val <= -3.4e+38:
-                            land.append([cellCols[col], cellRows[row]])
-                        if cellLays[lay] >= val and [cellCols[col], cellRows[row]] not in land:
-                            litoMatrix[lay, row, col] = 0
-                            ProbMatrix[lay, row, col] = ma.masked
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
+        if self.seabed_raster:
+            val, land = self._seabed_masks(cellCols, cellRows)
+            # Same equivalence as KNNVoxelModel: land == nodata pixels, which
+            # always fail the old "not in land" test; water == valid pixels at
+            # or above the seabed elevation.
+            water = (~land)[None, :, :] & (cellLays[:, None, None] >= val[None, :, :])
+            litoMatrix[water] = 0
+            ProbMatrix[water] = ma.masked
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -226,23 +271,17 @@ class GBCVoxelModel(BaseVoxelModel):
         nLays = cellLays.shape[0]
         litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
         ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
-        land = []
-        for lay in tqdm(range(nLays)):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
-                    if self.seabed_raster:
-                        x, y = self.seabed_raster.index(cellCols[col], cellRows[row])
-                        val = self.seabed_raster.read(1)[x, y]
-                        if val <= -3.4e+38:
-                            ProbMatrix[lay, row, col] = ma.masked
-                            land.append([cellCols[col], cellRows[row]])
-                        if cellLays[lay] >= val and [cellCols[col], cellRows[row]] not in land:
-                            litoMatrix[lay, row, col] = 0
-                            ProbMatrix[lay, row, col] = ma.masked
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
+        if self.seabed_raster:
+            val, land = self._seabed_masks(cellCols, cellRows)
+            # GBC additionally masked the entropy of every nodata (land)
+            # pixel, at every layer, before the same water rule as KNN/RF/SVM.
+            ProbMatrix[np.broadcast_to(land[None, :, :], ProbMatrix.shape)] = ma.masked
+            water = (~land)[None, :, :] & (cellLays[:, None, None] >= val[None, :, :])
+            litoMatrix[water] = 0
+            ProbMatrix[water] = ma.masked
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -268,13 +307,9 @@ class NNVoxelModel(BaseVoxelModel):
         nLays = cellLays.shape[0]
         litoMatrix = np.zeros([nLays, nRows, nCols])
         ProbMatrix = np.zeros([nLays, nRows, nCols])
-        for lay in tqdm(range(nLays)):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col] / self.dist, cellRows[row] / self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 
@@ -303,13 +338,9 @@ class StackedVoxelModel(BaseVoxelModel):
         nLays = cellLays.shape[0]
         litoMatrix = np.zeros([nLays, nRows, nCols])
         ProbMatrix = np.zeros([nLays, nRows, nCols])
-        for lay in tqdm(range(nLays)):
-            for row in range(nRows):
-                for col in range(nCols):
-                    cellTrans = np.array([cellCols[col]/self.dist, cellRows[row]/self.dist, cellLays[lay]])
-                    litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                    prob_pre = clf.predict_proba([cellTrans])
-                    ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
+        lito, ent = self._predict_grid(clf, cellCols, cellRows, cellLays)
+        litoMatrix[:, :, :] = lito
+        ProbMatrix[:, :, :] = ent
         return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix
 
 # Example usage
@@ -324,13 +355,14 @@ if __name__ == "__main__":
     parser.add_argument("--n_estimators", type=int, default=100, help="Number of estimators (RF/GBC)")
     parser.add_argument("--gamma", type=float, default=0.5, help="Gamma for SVM")
     parser.add_argument("--alpha", type=float, default=0.01, help="Alpha for NN")
-    parser.add_argument("--seabed", type=str, default=None, help="Seabed raster path (for RF/SVM/GBC)")
+    parser.add_argument("--n_neighbors", type=int, default=15, help="Number of neighbors (KNN)")
+    parser.add_argument("--seabed", type=str, default=None, help="Seabed raster path (for KNN/RF/SVM/GBC)")
     args = parser.parse_args()
 
     df = pd.read_csv(args.csv)
 
     if args.method == "knn":
-        model = KNNVoxelModel(dist=args.dist)
+        model = KNNVoxelModel(dist=args.dist, n_neighbors=args.n_neighbors, seabed_raster_path=args.seabed)
         model.run(df, args.out)
     elif args.method == "rf":
         model = RFVoxelModel(dist=args.dist, n_estimators=args.n_estimators, seabed_raster_path=args.seabed)

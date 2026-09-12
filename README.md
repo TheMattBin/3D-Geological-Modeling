@@ -1,5 +1,5 @@
 # 3D-Geological-Modeling
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/scikit-learn) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 This repo is for 3D geological or geotechnical modelling based on machine learning
 

@@ -26,19 +26,26 @@ def model_land_no_(var: nc.Dataset, seabed_raster: rasterio.io.DatasetReader, sh
     Z = var['z'][:]
     north = litoMatrix.shape[1]
     east = litoMatrix.shape[2]
-    land = []
+    # Read each raster band once instead of per cell; the nodata tests keep
+    # the original scalar -3.4e+38 comparisons (raster.nodata reads back as
+    # the float32-rounded -3.3999999521443642e+38, which classifies
+    # float32-nodata pixels differently).
+    sz_band = shenzhen_raster.read(1)
+    sb_band = seabed_raster.read(1)
+    land = np.zeros((north, east), dtype=bool)
     for j in range(north):
         for i in range(east):
             if 800576.1164593603 <= X[i] <= 870476.1164593603 and 834121.0385106392 <= Y[j] <= 858521.0385106392:
-                if shenzhen_raster.index(X[i], Y[j]):
-                    land.append([j, i])
+                x, y = shenzhen_raster.index(X[i], Y[j])
+                val = sz_band[x, y]
+                if val > -3.4e+38:
+                    land[j, i] = True
             if 801975.0 <= X[i] <= 860025.0 and 800975.0 <= Y[j] <= 847525.0:
                 x, y = seabed_raster.index(X[i], Y[j])
-                val = seabed_raster.read(1)[x, y]
+                val = sb_band[x, y]
                 if val <= -3.4e+38:
-                    land.append([j, i])
-    for l in land:
-        litoMatrix[:, l[0], l[1]] = 12
+                    land[j, i] = True
+    litoMatrix[:, land] = 12
     _write_lithology_nc(output_nc, litoMatrix, X, Y, Z, var)
 
 def model_land_no_SZ(var: nc.Dataset, seabed_raster: rasterio.io.DatasetReader, output_nc: str = "removeland_noZHv2.nc") -> None:
@@ -51,21 +58,22 @@ def model_land_no_SZ(var: nc.Dataset, seabed_raster: rasterio.io.DatasetReader, 
     Z = var['z'][:]
     north = litoMatrix.shape[1]
     east = litoMatrix.shape[2]
-    land = []
-    out_hk = []
+    # Read the raster band once instead of per cell (same nodata-test note as
+    # model_land_no_)
+    sb_band = seabed_raster.read(1)
+    land = np.zeros((north, east), dtype=bool)
+    out_hk = np.zeros((north, east), dtype=bool)
     for j in range(north):
         for i in range(east):
             if 801975.0 <= X[i] <= 860025.0 and 800975.0 <= Y[j] <= 847525.0:
                 x, y = seabed_raster.index(X[i], Y[j])
-                val = seabed_raster.read(1)[x, y]
+                val = sb_band[x, y]
                 if val <= -3.4e+38:
-                    land.append([j, i])
+                    land[j, i] = True
             else:
-                out_hk.append([j, i])
-    for l in land:
-        litoMatrix[:, l[0], l[1]] = 12
-    for l in out_hk:
-        litoMatrix[:, l[0], l[1]] = 13
+                out_hk[j, i] = True
+    litoMatrix[:, land] = 12
+    litoMatrix[:, out_hk] = 13
     _write_lithology_nc(output_nc, litoMatrix, X, Y, Z, var, add_esri_pe_string=True)
 
 def model_hide_land(var: nc.Dataset, output_nc: str = "removeland_hide_all_land.nc") -> None:

@@ -41,6 +41,7 @@ def knn3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, 
         litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
         if litoLength < 1:
             midPoint = wellXY + [(values['Ground Level'] - values['Depth Top']) - litoLength / 2, values['Legend Code']]
+            litoPoints.append(midPoint)
         else:
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -188,6 +189,7 @@ def svm3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, 
         litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
         if litoLength < 1:
             midPoint = wellXY + [(values['Ground Level'] - values['Depth Top']) - litoLength / 2, values['Legend Code']]
+            litoPoints.append(midPoint)
         else:
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -227,8 +229,8 @@ def svm3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, 
                                         arcpy.SpatialReference(2326, 5738))
     cur_borept = arcpy.da.InsertCursor('Pts', "SHAPE@")
 
-    litoMatrix = np.zeros([nLays, nRows, nCols])
-    ProbMatrix = np.zeros([nLays, nRows, nCols])
+    litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
+    ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
     for lay in range(nLays):
         for row in range(nRows):
             for col in range(nCols):
@@ -332,6 +334,7 @@ def gbdt3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution,
         litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
         if litoLength < 1:
             midPoint = wellXY + [(values['Ground Level'] - values['Depth Top']) - litoLength / 2, values['Legend Code']]
+            litoPoints.append(midPoint)
         else:
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -371,8 +374,8 @@ def gbdt3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution,
                                         arcpy.SpatialReference(2326, 5738))
     cur_borept = arcpy.da.InsertCursor('Pts', "SHAPE@")
 
-    litoMatrix = np.zeros([nLays, nRows, nCols])
-    ProbMatrix = np.zeros([nLays, nRows, nCols])
+    litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
+    ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
     for lay in range(nLays):
         for row in range(nRows):
             for col in range(nCols):
@@ -476,6 +479,7 @@ def rf3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, r
         litoLength = (values['Ground Level'] - values['Depth Top']) - (values['Ground Level'] - values['Depth Base'])
         if litoLength < 1:
             midPoint = wellXY + [(values['Ground Level'] - values['Depth Top']) - litoLength / 2, values['Legend Code']]
+            litoPoints.append(midPoint)
         else:
             npoints = int(litoLength)
             for point in range(1, npoints + 1):
@@ -515,8 +519,8 @@ def rf3d(table, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, r
                                         arcpy.SpatialReference(2326, 5738))
     cur_borept = arcpy.da.InsertCursor('Pts', "SHAPE@")
 
-    litoMatrix = np.zeros([nLays, nRows, nCols])
-    ProbMatrix = np.zeros([nLays, nRows, nCols])
+    litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
+    ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
     for lay in range(nLays):
         for row in range(nRows):
             for col in range(nCols):
@@ -626,6 +630,6 @@ elif method == 'SVM':
 elif method == 'GBDT':
     gbdt3d(tb, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, ratio, seabed, file, name, gbdt_n)
 elif method == 'RF':
-    gbdt3d(tb, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, ratio, seabed, file, name, rf_n)
+    rf3d(tb, xmin, xmax, ymin, ymax, xresolution, yresolution, zresolution, ratio, seabed, file, name, rf_n)
 else:
     pass

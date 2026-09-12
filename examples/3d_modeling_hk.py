@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import numpy.ma as ma
-from tqdm import tqdm
 
 import rasterio
 import netCDF4
@@ -62,43 +61,73 @@ def voxel_model(df, dist):
 
     litoMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
     ProbMatrix = ma.array(np.zeros([nLays, nRows, nCols]))
-    land = []
 
     # Open rasters once outside the loop
     Seabed_Raster = rasterio.open(SEABED_RASTER_PATH)
     shenzhen_Raster = rasterio.open(SHENZHEN_RASTER_PATH)
 
-    for lay in tqdm(range(nLays)):
-        for row in range(nRows):
-            for col in range(nCols):
-                cellXYZ = [cellCols[col], cellRows[row], cellLays[lay]]
-                cellTrans = np.array([cellCols[col] / dist, cellRows[row] / dist, cellLays[lay]])
-                litoMatrix[lay, row, col] = clf.predict([cellTrans])
-                prob_pre = clf.predict_proba([cellTrans])
-                ProbMatrix[lay, row, col] = entropy(prob_pre.flatten(), base=2)
-                # Shenzhen mask
-                if 800576.1164593603 <= cellCols[col] <= 870476.1164593603 and 834121.0385106392 <= cellRows[row] <= 858521.0385106392:
-                    try:
-                        if shenzhen_Raster.index(cellCols[col], cellRows[row]):
-                            land.append([cellCols[col], cellRows[row]])
-                    except Exception:
-                        pass
-                # Seabed mask
-                if 801975.0 <= cellCols[col] <= 860025.0 and 800975.0 <= cellRows[row] <= 847525.0:
-                    try:
-                        x, y = Seabed_Raster.index(cellCols[col], cellRows[row])
-                        val = Seabed_Raster.read(1)[x, y]
-                        if val <= -3.4e+38:
-                            ProbMatrix[lay, row, col] = ma.masked
-                            land.append([cellCols[col], cellRows[row]])
-                        if cellLays[lay] >= val and [cellCols[col], cellRows[row]] not in land:
-                            litoMatrix[lay, row, col] = 0
-                            ProbMatrix[lay, row, col] = ma.masked
-                    except Exception:
-                        pass
+    # Batched voxel predictions (one predict / predict_proba call for the
+    # whole grid; loop order lay -> row -> col is preserved by the reshape)
+    Xq = np.empty((nLays, nRows, nCols, 3))
+    Xq[..., 0] = (cellCols / dist)[None, None, :]
+    Xq[..., 1] = (cellRows / dist)[None, :, None]
+    Xq[..., 2] = cellLays[:, None, None]
+    litoMatrix[:, :, :] = clf.predict(Xq.reshape(-1, 3)).reshape(nLays, nRows, nCols)
+    ProbMatrix[:, :, :] = entropy(clf.predict_proba(Xq.reshape(-1, 3)), base=2, axis=1).reshape(nLays, nRows, nCols)
+
+    # Seabed / Shenzhen masking: read each raster band once, then evaluate the
+    # per-cell rules (same bboxes, same try/except semantics, and the same
+    # scalar -3.4e+38 comparisons — raster.nodata reads back as the
+    # float32-rounded -3.3999999521443642e+38, which classifies float32-nodata
+    # pixels differently) on the (row, col) grid only — they do not depend on
+    # the layer.
+    sz_band = shenzhen_Raster.read(1)
+    sb_band = Seabed_Raster.read(1)
+
+    # in_sz: inside the Shenzhen polygon (valid pixel) — such cells entered
+    # `land` in the old loop and were therefore exempt from the seabed rule.
+    # sb_val / sb_has: seabed elevation where the bbox holds and the raster
+    # lookup succeeded (NaN otherwise; NaN comparisons are False, matching the
+    # old skipped-if branches).
+    in_sz = np.zeros((nRows, nCols), dtype=bool)
+    sb_val = np.full((nRows, nCols), np.nan)
+    sb_has = np.zeros((nRows, nCols), dtype=bool)
+    sb_nodata_2d = np.zeros((nRows, nCols), dtype=bool)
+    for row in range(nRows):
+        for col in range(nCols):
+            cc, cr = cellCols[col], cellRows[row]
+            # Shenzhen mask
+            if 800576.1164593603 <= cc <= 870476.1164593603 and 834121.0385106392 <= cr <= 858521.0385106392:
+                try:
+                    x_sz, y_sz = shenzhen_Raster.index(cc, cr)
+                    sz_val = sz_band[x_sz, y_sz]
+                    if sz_val > -3.4e+38:
+                        in_sz[row, col] = True
+                except Exception:
+                    pass
+            # Seabed mask
+            if 801975.0 <= cc <= 860025.0 and 800975.0 <= cr <= 847525.0:
+                try:
+                    x, y = Seabed_Raster.index(cc, cr)
+                    sb_val[row, col] = sb_band[x, y]
+                    sb_has[row, col] = True
+                    if sb_band[x, y] <= -3.4e+38:
+                        sb_nodata_2d[row, col] = True
+                except Exception:
+                    pass
+
+    # Old per-voxel rule: nodata seabed pixels had their entropy masked at
+    # every layer (regardless of land membership), and the water rule
+    # (lithology 0 + masked entropy) applied only where the coordinate was
+    # NOT in land — land being exactly the Shenzhen-valid and seabed-nodata
+    # cells, already blocked at the first layer.
+    ProbMatrix[np.broadcast_to(sb_nodata_2d[None, :, :], ProbMatrix.shape)] = ma.masked
+    water = sb_has & ~sb_nodata_2d & ~in_sz & (cellLays[:, None, None] >= sb_val[None, :, :])
+    litoMatrix[water] = 0
+    ProbMatrix[water] = ma.masked
 
     # Confusion matrix (for reporting, not used further)
-    predicted = [clf.predict([coor_trans[i]]) for i in range(coor_trans.shape[0])]
+    predicted = clf.predict(coor_trans)
     _ = confusion_matrix(soil_class, predicted)
 
     return cellCols, cellRows, cellLays, litoMatrix, ProbMatrix

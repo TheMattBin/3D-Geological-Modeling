@@ -24,16 +24,16 @@ def compare_borehole_logs(nc_path: str, csv_path: str) -> None:
         predict_bh = np.reshape(predict_bh, (-1, 1))
         predict_bh_list.append(predict_bh)
         ori_bh_list.append(np.reshape(np.array(val), (-1, 1)))
-    fig, ax = plt.subplots(nrows=1, ncols=16, sharex=True, sharey=True)
+    fig, ax = plt.subplots(nrows=1, ncols=2 * len(predict_bh_list), sharex=True, sharey=True)
     colors = ['#ff8000', '#ffa54d', '#ffff00']
     cmap = matplotlib.colors.ListedColormap(colors)
     for i in range(len(predict_bh_list)):
-        ax[(i % 8 + i)].imshow(predict_bh_list[i], aspect='auto', cmap=cmap, extent=[0, 1, 40, 0])
-        ax[(i % 8 + i + 1)].imshow(ori_bh_list[i], aspect='auto', cmap=cmap, extent=[0, 1, 40, 0])
-        ax[(i % 8 + i)].get_yaxis().set_visible(False)
-        ax[(i % 8 + i + 1)].get_yaxis().set_visible(False)
-        ax[(i % 8 + i)].get_xaxis().set_visible(False)
-        ax[(i % 8 + i + 1)].get_xaxis().set_visible(False)
+        ax[2 * i].imshow(predict_bh_list[i], aspect='auto', cmap=cmap, extent=[0, 1, 40, 0])
+        ax[2 * i + 1].imshow(ori_bh_list[i], aspect='auto', cmap=cmap, extent=[0, 1, 40, 0])
+        ax[2 * i].get_yaxis().set_visible(False)
+        ax[2 * i + 1].get_yaxis().set_visible(False)
+        ax[2 * i].get_xaxis().set_visible(False)
+        ax[2 * i + 1].get_xaxis().set_visible(False)
     plt.tight_layout()
     plt.show()
 
