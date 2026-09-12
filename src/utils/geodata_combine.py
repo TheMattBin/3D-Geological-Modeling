@@ -47,12 +47,17 @@ class GeoDataCombiner:
         spt_df = []
         for i in range(l):
             cpt_elev[(cptdata['Easting'][i], cptdata['Northing'][i])].append(cptdata['ElevCPT'][i])
+        seen_intervals: Dict = defaultdict(set)
         for key in cpt_elev.keys():
             tmpdf = sptdata[((sptdata['Easting_x']-key[0])**2 + (sptdata['Northing_x']-key[1])**2) <= 12100]
             spt_df.append(tmpdf)
             for i, val in tmpdf.iterrows():
                 interval = [val['TopElev_y'], val['BotElev_y']]
-                if interval not in spt_elev[(val['Easting_x'], val['Northing_x'])]:
+                # NaN-aware dedupe key: None == None, unlike float('nan') != float('nan'),
+                # so this agrees with pandas drop_duplicates (which treats NaNs as equal).
+                interval_key = tuple(None if pd.isna(v) else v for v in interval)
+                if interval_key not in seen_intervals[(val['Easting_x'], val['Northing_x'])]:
+                    seen_intervals[(val['Easting_x'], val['Northing_x'])].add(interval_key)
                     spt_elev[(val['Easting_x'], val['Northing_x'])].append(interval)
         for k, value in spt_elev.items():
             tmpdf = cptdata[((cptdata['Easting'] - k[0]) ** 2 + (cptdata['Northing'] - k[1]) ** 2) <= 12100]
