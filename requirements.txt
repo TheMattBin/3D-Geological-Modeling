@@ -5,5 +5,5 @@ netCDF4>=1.6.3
 tqdm>=4.70.1
 scipy>=1.18.1
 rasterio>=1.5.1
-matplotlib>=3.11.1
+matplotlib>=3.11.2
 pykrige>=1.7.3
